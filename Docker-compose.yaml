@@ -1,0 +1,7 @@
+version: '3'
+services:
+  lab_worker:
+    container_name: lab_worker
+    build: .
+    volumes:
+      - ./outputData:/usr/src/labwork/outputData
