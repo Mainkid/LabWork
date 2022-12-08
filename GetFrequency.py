@@ -20,10 +20,10 @@ def connectToDB():
     with open(r'cityData/city_regions.json', encoding='utf8') as f:
         city_BD = json.load(f)
 
-    connection = psycopg2.connect(user="postgres", database="postgres",
+    connection = psycopg2.connect(user="postgres", database="Coursework",
                                     # пароль, который указали при установке PostgreSQL
                                     password="Samsung01",
-                                    host="host.docker.internal",
+                                    host="faff0868e784",
                                     port="5432")
 
     print("Connected successfuly!")
@@ -143,10 +143,12 @@ region2_text = {}
 
 regions_amnt = {}
 regions_scalar_sentiment = {}
-get_first_city = "SELECT object_comments.id, object_comments.id_from, title,text " \
-                 "FROM object_comments,user_data_table,city " \
+get_first_city = "SELECT T2.title as src_city,T1.title as dst_city,T1.id,T1.id_from,T1.text FROM " \
+                 "(SELECT object_comments.id, object_comments.id_from, title,text  " \
+                 "FROM object_comments ,user_data_table,city " \
                  "WHERE object_comments.id=user_data_table.id AND user_data_table.city_id IS NOT NULL " \
-                 "AND user_data_table.city_id=city.id_city LIMIT 10000"
+                 "AND user_data_table.city_id=city.id_city LIMIT 100000) AS t1 INNER JOIN " \
+                 "(SELECT DISTINCT id,title FROM user_data_table,city WHERE city_id=id_city ) AS t2 ON t2.id=t1.id_from"
 
 connection=connectToDB()
 cursor = connection.cursor()
@@ -154,30 +156,26 @@ cursor.execute(get_first_city)
 counter = 0
 with open(r'./cityData/city_regions.json', encoding='utf8') as f:
     geoRegions = json.load(f)
-for row in cursor:
-    check_null_cursor = connection.cursor()
-    check_null = "SELECT title FROM user_data_table,city WHERE id=" + str(row[1]) + " AND city_id=id_city"
-    check_null_cursor.execute(check_null)
 
-    for row2 in check_null_cursor:
-        cur_city = row2[0]
-        if (cur_city in eng_ru_city_dict.keys()):
-            cur_city = eng_ru_city_dict[cur_city]
+for row2 in cursor:
+    cur_city = row2[0]
+    if (cur_city in eng_ru_city_dict.keys()):
+        cur_city = eng_ru_city_dict[cur_city]
 
-        if (cur_city in geoRegions and row[2] in geoRegions):
-            if (geoRegions[cur_city]['region'], geoRegions[row[2]]['region']) not in city_communications:
-                city_communications[(geoRegions[cur_city]['region'], geoRegions[row[2]]['region'])] = 0
-                regions_amnt[(geoRegions[cur_city]['region'], geoRegions[row[2]]['region'])] = 0
-                region2_text[(geoRegions[cur_city]['region'], geoRegions[row[2]]['region'])] = []
-            messages = []
-            documentA = ' '.join(filter(lambda x: not exclude(x), tt.tokenize(row[3])))
-            documentA = tt.tokenize(documentA)
-            documentA = ' '.join([(morph.parse(w)[0]).normal_form for w in documentA])
-            counter += 1
-            if (counter % 10000 == 0):
-                print(counter)
-            messages.append(documentA)
-            region2_text[(geoRegions[cur_city]['region'], geoRegions[row[2]]['region'])].append(documentA)
+    if (cur_city in geoRegions and row2[1] in geoRegions):
+        if (geoRegions[cur_city]['region'], geoRegions[row2[1]]['region']) not in city_communications:
+            city_communications[(geoRegions[cur_city]['region'], geoRegions[row2[1]]['region'])] = 0
+            regions_amnt[(geoRegions[cur_city]['region'], geoRegions[row2[1]]['region'])] = 0
+            region2_text[(geoRegions[cur_city]['region'], geoRegions[row2[1]]['region'])] = []
+        messages = []
+        documentA = ' '.join(filter(lambda x: not exclude(x), tt.tokenize(row2[4])))
+        documentA = tt.tokenize(documentA)
+        documentA = ' '.join([(morph.parse(w)[0]).normal_form for w in documentA])
+        counter += 1
+        if (counter % 10000 == 0):
+            print(counter)
+        messages.append(documentA)
+        region2_text[(geoRegions[cur_city]['region'], geoRegions[row2[1]]['region'])].append(documentA)
 print("CORPUS GENERATED!")
 ####
 
